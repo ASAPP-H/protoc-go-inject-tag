@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strings"
 )
 
 var (
@@ -58,6 +59,28 @@ func parseFile(inputPath string) (areas []textArea, err error) {
 		}
 
 		for _, field := range structDecl.Fields.List {
+			// is XXX_ field then add gorm tags to ignore the field in databse
+			isXXXField := false
+			for _, name := range field.Names {
+				if strings.HasPrefix(name.String(), "XXX_") {
+					isXXXField = true
+					break
+				}
+			}
+
+			if isXXXField {
+				xxxTag := `gorm:"-"`
+				currentTag := field.Tag.Value
+				area := textArea{
+					Start:      int(field.Pos()),
+					End:        int(field.End()),
+					CurrentTag: currentTag[1 : len(currentTag)-1],
+					InjectTag:  xxxTag,
+				}
+				areas = append(areas, area)
+				continue
+			}
+
 			// skip if field has no doc
 			if field.Doc == nil {
 				continue
